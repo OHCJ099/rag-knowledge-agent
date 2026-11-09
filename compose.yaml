@@ -1,0 +1,12 @@
+services:
+  knowledge-api:
+    build: .
+    env_file: .env
+    ports:
+      - "127.0.0.1:9000:8000"
+    volumes:
+      - rag-index:/app/projects/rag-kb/data/index
+      - rag-uploads:/app/projects/rag-kb/data/uploads
+volumes:
+  rag-index:
+  rag-uploads:

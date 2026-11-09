@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <title>企业制度知识库</title>
+  <style>
+    /* 区域底色 */
+    #uploadArea { background: #d6eaff; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    #queryArea  { background: #d9f7d9; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    #sourceArea { background: #ffe8cc; padding: 12px; border-radius: 6px; }
+
+    #uploadButton { background: #4a90e2; color: #fff; }
+    #queryButton  { background: #3cb371; color: #fff; }
+    .deleteButton { background: #e25c5c; color: #fff; margin-left: 8px; }
+
+    /* 空元素显示灰色占位提示 */
+    #uploadStatus:empty::before { content: "（上传状态显示在这里）"; color: #999; }
+    #answerBox:empty::before    { content: "（模型回答显示在这里）"; color: #999; }
+    #sourcesBox:empty::before   { content: "（引用片段显示在这里）"; color: #999; }
+    #listBox:empty::before      { content: "（来源列表显示在这里）"; color: #999; }
+
+    /* 给这些区域加个最小高度，空的时候也占位置，看得见 */
+    #uploadStatus, #answerBox, #sourcesBox, #listBox {
+      min-height: 1.2em;
+      background: #ffffffaa;
+      padding: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h3>企业制度知识库</h3>
+
+  <!-- 上传区：蓝色 -->
+  <div id="uploadArea">
+    <input id="fileInput" type="file" accept=".md,.pdf" />
+    <button id="uploadButton">上传</button>
+    <p id="uploadStatus"></p>
+  </div>
+
+  <!-- 提问区：绿色 -->
+  <div id="queryArea">
+    <input id="questionInput" type="text" placeholder="输入制度问题" />
+    <button id="queryButton">提问</button>
+    <pre id="answerBox"></pre>
+    <pre id="sourcesBox"></pre>
+  </div>
+
+  <!-- 来源区：橙色 -->
+  <div id="sourceArea">
+    <h4>来源列表</h4>
+    <div id="listBox"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const uploadButton = document.getElementById("uploadButton");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const questionInput = document.getElementById("questionInput");
+    const queryButton = document.getElementById("queryButton");
+    const answerBox = document.getElementById("answerBox");
+    const sourcesBox = document.getElementById("sourcesBox");
+    const listBox = document.getElementById("listBox");
+
+
+    let token = localStorage.getItem("demoToken")
+
+    if (!token){
+      token = prompt("请输入口令")
+
+      if (token){
+        localStorage.setItem("demoToken", token)
+      }
+
+    }
+
+    // 上传文件
+    async function upload() {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("file", file);
+      const resp = await fetch("/upload", { method: "POST", body: fd, headers: { "X-Demo-Token": token } });
+      const data = await resp.json();
+      uploadStatus.textContent = resp.ok
+        ? "已入库：" + data.source + "，" + data.blocks + " 块"
+        : "上传失败：" + data.detail;
+      loadSources();
+    }
+
+    // 提问
+    async function query() {
+      const question = questionInput.value.trim();
+      if (!question) return;
+      const resp = await fetch("/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" ,
+        "X-Demo-Token": token
+        },
+        body: JSON.stringify({ question: question}),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        answerBox.textContent = "查询失败：" + data.detail;
+        return;
+      }
+      answerBox.textContent = data.answer;
+      sourcesBox.textContent = "";
+      for (let i = 0; i < data.sources.length; i++) {
+        sourcesBox.textContent +=
+          "[" + (i + 1) + "] " + data.sources[i][0] + "\n" + data.sources[i][1] + "\n\n";
+      }
+    }
+
+    // 加载来源列表
+    async function loadSources() {
+      const resp = await fetch("/sources", {
+        headers: {"X-Demo-Token": token}
+        }
+      );
+
+      if (!resp.ok){
+        listBox.textContent = "加载失败";
+        return;
+      }
+
+      const data = await resp.json();
+      listBox.textContent = "";
+      data.sources.sort((a, b) => b.blocks - a.blocks);
+      for (const s of data.sources) {
+        const row = document.createElement("div");
+        row.textContent = s.source + "（" + s.blocks + " 块）";
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "删除";
+        delBtn.className = "deleteButton";
+        delBtn.addEventListener("click", () => remove(s.source));
+
+        row.appendChild(delBtn);
+        listBox.appendChild(row);
+      }
+    }
+
+    // 删除某个来源
+    async function remove(name) {
+      const resp = await fetch("/source/" + name, { method: "DELETE", headers: { "X-Demo-Token": token } });
+      const data = await resp.json();
+      uploadStatus.textContent = resp.ok
+        ? "已删除：" + name
+        : "删除失败：" + data.detail;
+      loadSources();
+    }
+
+    uploadButton.addEventListener("click", upload);
+    queryButton.addEventListener("click", query);
+    loadSources();
+  </script>
+</body>
+</html>

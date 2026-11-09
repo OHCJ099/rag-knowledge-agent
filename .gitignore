@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.log
+*.jsonl
+projects/rag-kb/data/index/
+projects/rag-kb/data/_lab/
+projects/rag-kb/data/uploads/
+.vscode/
+.idea/
+build/
+dist/

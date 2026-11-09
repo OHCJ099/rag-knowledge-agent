@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+**/*.jsonl
+projects/rag-kb/data/index
+projects/rag-kb/data/_lab
+projects/rag-kb/data/uploads
+tests
